@@ -1,0 +1,100 @@
+# Gerekli kütüphaneleri içe aktar
+import requests
+import pandas as pd
+import matplotlib.pyplot as plt
+from statsmodels.tsa.arima.model import ARIMA
+from datetime import datetime, timedelta
+
+# Deprem verilerini indir
+url = "http://www.koeri.boun.edu.tr/scripts/lst0.asp"
+response = requests.get(url)
+text = response.text
+
+# Verileri bir veri çerçevesine dönüştür
+lines = text.split("\n")[7:-2]
+data = []
+for line in lines:
+    items = line.split()
+    date = items[0]
+    time = items[1]
+    lat = float(items[2])
+    lon = float(items[3])
+    depth = float(items[4])
+    mag = float(items[6])
+    loc = " ".join(items[8:])
+    data.append([date, time, lat, lon, depth, mag, loc])
+
+df = pd.DataFrame(data, columns=["Date", "Time", "Latitude", "Longitude", "Depth", "Magnitude", "Location"])
+
+# Verileri temizle
+df["Date"] = pd.to_datetime(df["Date"], format="%Y.%m.%d")
+df["Time"] = pd.to_datetime(df["Time"], format="%H:%M:%S.%f").dt.time
+df["DateTime"] = pd.to_datetime(df["Date"].astype(str) + " " + df["Time"].astype(str))
+df = df.drop(["Date", "Time"], axis=1)
+df = df.set_index("DateTime")
+df = df.sort_index()
+
+# Verileri grafiğe dök
+plt.figure(figsize=(10, 6))
+plt.plot(df["Magnitude"])
+plt.xlabel("Date")
+plt.ylabel("Magnitude")
+plt.title("Earthquakes in Turkey (Last 500)")
+plt.show()
+
+# Verileri bir ARIMA modeli ile analiz et
+model = ARIMA(df["Magnitude"], order=(5, 1, 0))
+model_fit = model.fit()
+print(model_fit.summary())
+
+# Gelecek 30 gün için deprem büyüklüğü tahmin et
+forecast = model_fit.forecast(steps=30)
+plt.figure(figsize=(10, 6))
+plt.plot(forecast)
+plt.xlabel("Date")
+plt.ylabel("Magnitude")
+plt.title("Earthquake Forecast for Turkey (Next 30 Days)")
+plt.show()
+
+# Kullanıcıdan bir tarih girmesini iste
+user_date = input("Enter a date (YYYY-MM-DD): ")
+user_date = datetime.strptime(user_date, "%Y-%m-%d")
+
+# Bu tarihte deprem olup olmayacağını tahmin et
+threshold = 4 # Deprem büyüklüğü eşiği
+prediction = forecast[user_date]
+if prediction >= threshold:
+    print(f"There is a high chance of an earthquake on {user_date.date()} with a magnitude of {prediction:.2f}.")
+else:
+    print(f"There is a low chance of an earthquake on {user_date.date()} with a magnitude of {prediction:.2f}.")
+#Yazan Rıdvan Kaya
+Bu kod, deprem verilerini kullanarak zaman serisi analizi yapan ve deprem tahmini yapan bir Python kodudur. Bu kodun
+çalışması için internet bağlantısı ve Python kütüphaneleri gerekmektedir. 
+Bu kodun yaptığı şeyler şunlardır:
+
+- Deprem verileri sitesinden Türkiye'deki son 500 depremin verilerini indirir. Bu site, Boğaziçi Üniversitesi 
+Kandilli Rasathanesi ve Deprem Araştırma Enstitüsü tarafından sağlanan deprem verilerini içerir. Bu veriler,
+depremin tarih, saat, enlem, boylam, derinlik, büyüklük ve yer bilgilerini içerir.
+- Bu verileri bir pandas veri çerçevesine dönüştürür ve temizler. Pandas, Python ile veri analizi yapmak için 
+kullanılan bir kütüphanedir. Veri çerçevesi, verileri tablo şeklinde tutan bir veri yapısıdır. Bu kod, verileri 
+tarih ve saat bilgilerini birleştirerek bir veri çerçevesine dönüştürür ve bu bilgileri indeks olarak kullanır.
+Ayrıca, verileri tarih ve büyüklük olarak sıralar.
+- Verileri bir matplotlib grafiğinde gösterir. Matplotlib, Python ile veri görselleştirmek için kullanılan bir 
+kütüphanedir. Bu kod, verilerin büyüklüklerini tarih eksenine göre çizgi grafiği olarak gösterir. Bu grafik, 
+Türkiye'deki son 500 depremin büyüklük dağılımını gösterir.
+- Verileri bir ARIMA modeli ile zaman serisi analizi yapar ve gelecek 30 gün için deprem büyüklüğü tahmin eder. 
+ARIMA, otoregresif bütünleşik kayan ortalama anlamına gelir. Bu, zaman serisi verilerini analiz etmek için 
+kullanılan bir istatistiksel modeldir. Zaman serisi verileri, belirli zaman aralıklarında ölçülen verilerdir. 
+Örneğin, deprem büyüklükleri zaman serisi verileridir. Bu kod, verileri bir ARIMA modeli ile eğitir ve modelin 
+uyumunu gösterir. Ayrıca, modeli kullanarak gelecek 30 gün için deprem büyüklüğü tahmin eder ve bu tahminleri 
+bir matplotlib grafiğinde gösterir. Bu grafik, Türkiye'deki deprem büyüklüğü tahminlerini gösterir.
+- Kullanıcıdan bir tarih girmesini ister ve bu tarihte deprem olup olmayacağını tahmin eder. Bu kod, 
+kullanıcıdan bir tarih girmesini bekler ve bu tarihi bir datetime nesnesine dönüştürür. Datetime, 
+Python ile tarih ve saat işlemleri yapmak için kullanılan bir modüldür. Bu kod, kullanıcının girdiği 
+tarihi, tahmin edilen deprem büyüklükleriyle karşılaştırır ve bir eşik değeri kullanarak deprem 
+olasılığını belirler. Eşik değeri, deprem büyüklüğünün ne kadar yüksek olması gerektiğini 
+belirleyen bir değerdir. Bu kod, eşik değeri olarak 4 kullanır. Bu, 4 veya daha yüksek 
+büyüklükte bir depremin yüksek olasılık olarak kabul edildiği anlamına gelir. Bu kod,
+kullanıcının girdiği tarihte deprem olup olmayacağını ve deprem büyüklüğünü ekrana yazdırır.
+
+Bu kodu çalıştırmak için bir Python ortamı kullanabilirsiniz. Örneğin, Google Colab gibi bir online ortam kullanabilirsiniz. Bu kodu kopyalayıp yapıştırarak veya indirerek kullanabilirsiniz.
